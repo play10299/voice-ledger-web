@@ -1,0 +1,1 @@
+window.VOICE_LEDGER_CONFIG={"SUPABASE_URL":"https://ogzqdjhfwjmaevwfrwmq.supabase.co","SUPABASE_ANON_KEY":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nenFkamhmd2ptYWV2d2Zyd21xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc0NjY1MjMsImV4cCI6MjEwMzA0MjUyM30.Yd-Z57H_NtWPid7vdwAFQ_PUwg4B2FKnTlBvw0xjZjY"};
