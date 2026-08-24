@@ -1,0 +1,11 @@
+{
+  "name":"念帳 Voice Ledger",
+  "short_name":"念帳",
+  "description":"語音快速記帳與共同帳本",
+  "start_url":"./",
+  "scope":"./",
+  "display":"standalone",
+  "background_color":"#f7f7fb",
+  "theme_color":"#6d28d9",
+  "icons":[{"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
