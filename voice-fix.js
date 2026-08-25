@@ -1,6 +1,9 @@
 (() => {
   let recognition = null;
   let listening = false;
+  let lastTranscript = '';
+  let finalized = false;
+  let finalizeTimer = null;
 
   function toast(message) {
     const t = document.querySelector('#toast');
@@ -35,13 +38,38 @@
       : `${reason ? reason + '。' : ''}瀏覽器語音辨識不可用，可使用系統鍵盤語音輸入。`);
   }
 
+  function clearFinalizeTimer() {
+    if (finalizeTimer) clearTimeout(finalizeTimer);
+    finalizeTimer = null;
+  }
+
+  function finalizeTranscript() {
+    if (finalized) return;
+    const input = textarea();
+    const text = (input?.value || lastTranscript || '').trim();
+    if (!text) return;
+    finalized = true;
+    lastTranscript = text;
+    if (input) input.value = text;
+    setButton('🎤 開始語音輸入');
+    const parse = document.querySelector('#parse');
+    if (parse) parse.click();
+  }
+
+  function scheduleFinalize(delay = 900) {
+    clearFinalizeTimer();
+    finalizeTimer = setTimeout(finalizeTranscript, delay);
+  }
+
   function stopRecognition() {
+    clearFinalizeTimer();
     if (recognition) {
       try { recognition.stop(); } catch (_) {}
       recognition = null;
     }
     listening = false;
     setButton('🎤 開始語音輸入');
+    if (lastTranscript.trim()) finalizeTranscript();
   }
 
   function startRecognition() {
@@ -65,8 +93,9 @@
       recognition.continuous = false;
       recognition.interimResults = true;
       recognition.maxAlternatives = 3;
+      lastTranscript = '';
+      finalized = false;
 
-      let finalText = '';
       recognition.onstart = () => {
         listening = true;
         setButton('● 正在聽… 點一下停止', true);
@@ -74,17 +103,24 @@
       };
 
       recognition.onresult = (event) => {
-        let interim = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
+        let combined = '';
+        let hasFinal = false;
+        for (let i = 0; i < event.results.length; i++) {
           const text = event.results[i][0]?.transcript || '';
-          if (event.results[i].isFinal) finalText += text;
-          else interim += text;
+          combined += text;
+          if (event.results[i].isFinal) hasFinal = true;
         }
-        input.value = (finalText + interim).trim();
+        combined = combined.trim();
+        if (!combined) return;
+        lastTranscript = combined;
+        input.value = combined;
         input.dispatchEvent(new Event('input', { bubbles: true }));
+        if (hasFinal) scheduleFinalize(80);
+        else scheduleFinalize(1100);
       };
 
       recognition.onspeechend = () => {
+        if (lastTranscript.trim()) scheduleFinalize(700);
         try { recognition.stop(); } catch (_) {}
       };
 
@@ -92,10 +128,7 @@
         listening = false;
         recognition = null;
         setButton('🎤 開始語音輸入');
-        if (input.value.trim()) {
-          const parse = document.querySelector('#parse');
-          if (parse) parse.click();
-        }
+        if (lastTranscript.trim()) finalizeTranscript();
       };
 
       recognition.onerror = (event) => {
@@ -103,6 +136,13 @@
         recognition = null;
         listening = false;
         setButton('🎤 開始語音輸入');
+
+        // Some mobile browsers emit no-speech/aborted after already giving a usable interim transcript.
+        if (lastTranscript.trim() && ['no-speech', 'aborted', 'network'].includes(code)) {
+          finalizeTranscript();
+          return;
+        }
+
         const messages = {
           'not-allowed': '麥克風權限未允許',
           'service-not-allowed': '瀏覽器禁止使用語音服務',
@@ -111,7 +151,6 @@
           'no-speech': '沒有聽到語音',
           'aborted': '語音辨識已取消'
         };
-        if (code === 'aborted') return;
         keyboardFallback(messages[code] || `語音辨識失敗（${code}）`);
       };
 
@@ -119,11 +158,11 @@
     } catch (error) {
       recognition = null;
       listening = false;
-      keyboardFallback(error?.message || '無法啟動語音辨識');
+      if (lastTranscript.trim()) finalizeTranscript();
+      else keyboardFallback(error?.message || '無法啟動語音辨識');
     }
   }
 
-  // Capture phase deliberately intercepts the original app.js click handler.
   document.addEventListener('click', (event) => {
     const target = event.target.closest?.('#speak');
     if (!target) return;
